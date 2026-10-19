@@ -15,7 +15,7 @@ import logging.config
 import math
 from urllib.parse import urlparse
 
-__version__ = "0.8.0"
+__version__ = "0.8.0+gs.1"
 
 
 DEFAULT_LOG_CONFIG = {

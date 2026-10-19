@@ -1,0 +1,70 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.6, pytest-9.1.1, pluggy-1.7.0
+rootdir: <checkout>
+configfile: pyproject.toml
+testpaths: tests
+plugins: cov-7.1.0, asyncio-1.4.0, platformdirs-4.13.5
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 37 items
+
+tests/test_lifecycle.py ...................
+tests/test_modbus_proxy.py ..............2026-10-19 16:37:44,528     INFO modbus-proxy: Starting...
+2026-10-19 16:37:44,528     INFO modbus-proxy.ModBus(127.0.0.1:61689): Ready to accept requests on 127.0.0.1:0
+2026-10-19 16:37:44,529     INFO modbus-proxy.Client(127.0.0.1:61691): new client connection
+2026-10-19 16:37:44,529     INFO modbus-proxy.ModBus(127.0.0.1:61689): connecting to modbus...
+2026-10-19 16:37:44,529     INFO modbus-proxy.ModBus(127.0.0.1:61689): connected!
+2026-10-19 16:37:44,529     INFO modbus-proxy.Client(127.0.0.1:61691): closing connection...
+2026-10-19 16:37:44,529     INFO modbus-proxy.Client(127.0.0.1:61691): connection closed
+2026-10-19 16:37:44,529     INFO modbus-proxy.ModBus(127.0.0.1:61689): closing connection...
+2026-10-19 16:37:44,529     INFO modbus-proxy.ModBus(127.0.0.1:61689): connection closed
+.2026-10-19 16:37:44,530    ERROR asyncio: Unhandled exception in client_connected_cb
+transport: <_SelectorSocketTransport fd=17 read=idle write=<idle, bufsize=0>>
+Traceback (most recent call last):
+  File "<checkout>/tests/conftest.py", line 34, in cb
+    data = await r.readexactly(6)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/streams.py", line 767, in readexactly
+    raise exceptions.IncompleteReadError(incomplete, n)
+asyncio.exceptions.IncompleteReadError: 0 bytes read on a total of 6 expected bytes
+2026-10-19 16:37:44,531     INFO modbus-proxy: Starting...
+2026-10-19 16:37:44,531     INFO modbus-proxy.ModBus(127.0.0.1:61693): Ready to accept requests on 127.0.0.1:0
+2026-10-19 16:37:44,531     INFO modbus-proxy.Client(127.0.0.1:61695): new client connection
+2026-10-19 16:37:44,531     INFO modbus-proxy.ModBus(127.0.0.1:61693): connecting to modbus...
+2026-10-19 16:37:44,531     INFO modbus-proxy.ModBus(127.0.0.1:61693): connected!
+2026-10-19 16:37:44,532     INFO modbus-proxy.Client(127.0.0.1:61695): closing connection...
+2026-10-19 16:37:44,532     INFO modbus-proxy.Client(127.0.0.1:61695): connection closed
+2026-10-19 16:37:44,532     INFO modbus-proxy.ModBus(127.0.0.1:61693): closing connection...
+2026-10-19 16:37:44,532     INFO modbus-proxy.ModBus(127.0.0.1:61693): connection closed
+.2026-10-19 16:37:44,532    ERROR asyncio: Unhandled exception in client_connected_cb
+transport: <_SelectorSocketTransport fd=17 read=idle write=<idle, bufsize=0>>
+Traceback (most recent call last):
+  File "<checkout>/tests/conftest.py", line 34, in cb
+    data = await r.readexactly(6)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/streams.py", line 767, in readexactly
+    raise exceptions.IncompleteReadError(incomplete, n)
+asyncio.exceptions.IncompleteReadError: 0 bytes read on a total of 6 expected bytes
+2026-10-19 16:37:44,533     INFO modbus-proxy.Client(127.0.0.1:61699): new client connection
+2026-10-19 16:37:44,533     INFO modbus-proxy.ModBus(127.0.0.1:61697): connecting to modbus...
+2026-10-19 16:37:44,533    ERROR modbus-proxy.ModBus(127.0.0.1:61697): write_read error [1/2]: ConnectionRefusedError(61, "Connect call failed ('127.0.0.1', 61697)")
+2026-10-19 16:37:44,533     INFO modbus-proxy.ModBus(127.0.0.1:61697): connecting to modbus...
+2026-10-19 16:37:44,533    ERROR modbus-proxy.ModBus(127.0.0.1:61697): write_read error [2/2]: ConnectionRefusedError(61, "Connect call failed ('127.0.0.1', 61697)")
+2026-10-19 16:37:44,533     INFO modbus-proxy.Client(127.0.0.1:61699): closing connection...
+2026-10-19 16:37:44,533     INFO modbus-proxy.Client(127.0.0.1:61699): connection closed
+.
+tests/test_resource_limits.py {"attempts": 1200, "listeners": 3, "fd_limit": 96, "baseline": 7, "peak": 46, "final": 7}
+.
+
+================================ tests coverage ================================
+_______________ coverage: platform darwin, python 3.14.6-final-0 _______________
+
+Name                  Stmts   Miss  Cover
+-----------------------------------------
+src/modbus_proxy.py     287     16    94%
+-----------------------------------------
+TOTAL                   287     16    94%
+Coverage HTML written to dir htmlcov
+============================= slowest 2 durations ==============================
+1.22s call     tests/test_lifecycle.py::test_nonreading_client_releases_socket_and_admission_slot[False]
+0.85s call     tests/test_resource_limits.py::test_reconnect_storm_under_small_descriptor_limit
+============================== 37 passed in 3.33s ==============================

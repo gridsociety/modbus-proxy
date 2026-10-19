@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-19",
+  "generic_fix_commit": "85518011fa80c5c22315de43d75d4c2e6500c0cc",
+  "fork_version": "0.8.0+gs.1",
+  "sha256": {
+    "src/modbus_proxy.py": "d250802343101eecd23424b664d793c013f7d7d84c6b6f950491c510e1616b00",
+    "tests/test_lifecycle.py": "d4f2853c99f76c3a20d58e6805be35127f6a964e7dd7bda88eafefe0cad8f94c",
+    "tests/test_resource_limits.py": "93b0929ad607c03d3420a4a25c23f3438ed04101702a6549eaf15b014961e738",
+    "tests/test_modbus_proxy.py": "c6982b9cfb35f0f8ef5b7180a476582d4be3724b44f9c8e176f621409f09b187"
+  }
+}

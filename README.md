@@ -1,4 +1,11 @@
-# ModBus TCP proxy
+# ModBus TCP proxy — Grid Society fork
+
+This fork fixes unbounded client retention during upstream outages.
+See [the resource-lifecycle fix and rollout notes](docs/resource-lifecycle.md)
+for configuration, compatibility changes, tests and deployment constraints.
+The upstream installation instructions below install the upstream package;
+install this fork from a pinned Git revision or its built wheel instead.
+
 
 [![ModBus proxy][pypi-version]](https://pypi.python.org/pypi/modbus-proxy)
 [![Python Versions][pypi-python-versions]](https://pypi.python.org/pypi/modbus-proxy)
