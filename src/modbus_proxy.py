@@ -12,6 +12,7 @@ import argparse
 import warnings
 import contextlib
 import logging.config
+import math
 from urllib.parse import urlparse
 
 __version__ = "0.8.0"
@@ -63,18 +64,26 @@ class Connection:
         )
 
     async def close(self):
-        if self.writer is not None:
+        writer = self.writer
+        # Detach before awaiting: a concurrent close must not clobber a newer
+        # connection, and cancellation must still leave us a transport to abort.
+        self.reader = None
+        self.writer = None
+        if writer is not None:
             self.log.info("closing connection...")
             try:
-                self.writer.close()
-                await self.writer.wait_closed()
+                writer.close()
+                # A peer that no longer reads can prevent a graceful flush
+                # forever. Bound cleanup as well as reads/writes.
+                await asyncio.wait_for(writer.wait_closed(), 1.0)
+            except asyncio.CancelledError:
+                writer.transport.abort()
+                raise
             except Exception as error:
+                writer.transport.abort()
                 self.log.info("failed to close: %r", error)
             else:
                 self.log.info("connection closed")
-            finally:
-                self.reader = None
-                self.writer = None
 
     async def _write(self, data):
         self.log.debug("sending %r", data)
@@ -131,10 +140,31 @@ class ModBus(Connection):
         self.modbus_host = url.hostname
         self.modbus_port = url.port
         self.timeout = modbus.get("timeout", None)
+        # The transaction budget includes the queue, connect and all retries.
+        # Older YAML files may omit timeout; resource retention is still bounded.
+        self.transaction_timeout = self._positive_timeout(
+            modbus.get("transaction_timeout", self.timeout or 10),
+            "transaction_timeout",
+        )
+        self.client_timeout = self._positive_timeout(
+            config["listen"].get("client_timeout", 30), "client_timeout"
+        )
+        self.max_clients = config["listen"].get("max_clients", 32)
+        if type(self.max_clients) is not int or self.max_clients <= 0:
+            raise ValueError("max_clients must be a positive integer")
+        self._clients = set()
+        self._stopping = False
         self.connection_time = modbus.get("connection_time", 0)
         self.unit_id_remapping = config.get("unit_id_remapping") or {}
         self.server = None
         self.lock = asyncio.Lock()
+
+    @staticmethod
+    def _positive_timeout(value, name):
+        value = float(value)
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(f"{name} must be finite and positive")
+        return value
 
     @property
     def address(self):
@@ -155,11 +185,21 @@ class ModBus(Connection):
                 self.log.info("delay after connect: %s", self.connection_time)
                 await asyncio.sleep(self.connection_time)
 
-    async def write_read(self, data, attempts=2):
-        async with self.lock:
+    async def write_read(self, data, attempts=2, client=None):
+        locked = False
+        completed = False
+
+        async def exchange():
+            nonlocal locked
+            await self.lock.acquire()
+            locked = True
             for i in range(attempts):
+                if client is not None and not client.opened:
+                    return None
                 try:
                     await self.connect()
+                    if client is not None and not client.opened:
+                        return None
                     coro = self._write_read(data)
                     return await asyncio.wait_for(coro, self.timeout)
                 except Exception as error:
@@ -167,6 +207,23 @@ class ModBus(Connection):
                         "write_read error [%s/%s]: %r", i + 1, attempts, error
                     )
                     await self.close()
+
+        try:
+            reply = await asyncio.wait_for(exchange(), self.transaction_timeout)
+            completed = True
+            return reply
+        except asyncio.TimeoutError:
+            self.log.warning("transaction deadline exceeded (queue included)")
+        finally:
+            if locked:
+                # A cancelled/timed-out exchange may leave a late reply behind.
+                # A waiter that never acquired the lock must not close the
+                # connection currently owned by another client.
+                try:
+                    if not completed:
+                        await self.close()
+                finally:
+                    self.lock.release()
 
     async def _write_read(self, data):
         await self._write(data)
@@ -192,26 +249,48 @@ class ModBus(Connection):
         return reply
 
     async def handle_client(self, reader, writer):
-        async with Client(reader, writer) as client:
-            while True:
-                request = await client.read()
-                if not request:
-                    break
-                reply = await self.write_read(self._transform_request(request))
-                if not reply:
-                    break
-                result = await client.write(self._transform_reply(reply))
-                if not result:
-                    break
+        task = asyncio.current_task()
+        if self._stopping or len(self._clients) >= self.max_clients:
+            # Do not allocate a queued handler for an excess client.
+            writer.close()
+            return
+        self._clients.add(task)
+        try:
+            async with Client(reader, writer) as client:
+                while True:
+                    request = await asyncio.wait_for(client.read(), self.client_timeout)
+                    if not request:
+                        break
+                    reply = await self.write_read(
+                        self._transform_request(request), client=client
+                    )
+                    if not reply:
+                        break
+                    result = await asyncio.wait_for(
+                        client.write(self._transform_reply(reply)), self.client_timeout
+                    )
+                    if not result:
+                        break
+        except asyncio.TimeoutError:
+            self.log.info("client read/write deadline exceeded")
+        finally:
+            self._clients.discard(task)
 
     async def start(self):
+        self._stopping = False
         self.server = await asyncio.start_server(
             self.handle_client, self.host, self.port, start_serving=True
         )
 
     async def stop(self):
+        self._stopping = True
         if self.server is not None:
             self.server.close()
+        clients = list(self._clients)
+        for task in clients:
+            task.cancel()
+        await asyncio.gather(*clients, return_exceptions=True)
+        if self.server is not None:
             await self.server.wait_closed()
         await self.close()
 
